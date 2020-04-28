@@ -7,6 +7,7 @@ namespace ipk_sniffer
         static void Main(string[] args)
         {
             Console.WriteLine("Hello World!");
+            Console.WriteLine("I did something.");
         }
     }
 }
