@@ -1,5 +1,5 @@
 .idea/
-./ipk-sniffer
-./ipk-sniffer.pdb
+ipk-sniffer
+ipk-sniffer.pdb
 zeta/ipk-sniffer/obj/
 zeta/ipk-sniffer/bin/

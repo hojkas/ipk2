@@ -8,6 +8,7 @@ namespace ipk_sniffer
         {
             Console.WriteLine("Hello World!");
             Console.WriteLine("I did something.");
+            Console.WriteLine("Hey");
         }
     }
 }
