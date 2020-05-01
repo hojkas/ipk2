@@ -124,9 +124,11 @@ class PacketCapture
     }
   }
 
-  private static void work_packet(object sender, CaptureEventArgs packet)
+  private static void work_packet(RawCapture p)
   {
-    
+    Console.WriteLine(p.ToString());
+    //ParsePacket
+    //Exract
   }
   
   public void catch_packets(Argument arg)
@@ -140,9 +142,10 @@ class PacketCapture
     //TODO delete
     Console.WriteLine("[DEBUG] Listening started\n-----");
     
+    // Cyklus načítá pakety
     while ((packet = Device.GetNextPacket()) != null) {
+      work_packet(packet);
       counter++;
-      Console.WriteLine("Got nice packet boi.");
       if (counter == arg.Num) break;
     }
 
