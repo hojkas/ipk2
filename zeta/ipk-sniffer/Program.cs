@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using CommandLine;
 using SharpPcap;
 // ReSharper disable CommentTypo
@@ -93,20 +95,75 @@ class Argument
   }
 }
 
-class Program
+
+class PacketCapture
 {
-  private void catch_packets(Argument arg)
+  private ICaptureDevice Device;
+
+  /* Funkce najde v aktivnich rozhranich to s jmenem zadanym parametrem i a ulozi ho do promenne Device
+   */
+  public void find_device(string name)
+  {
+    CaptureDeviceList dev_list = CaptureDeviceList.Instance;
+    bool found = false;
+    
+    //Cyklus projde available devices, a najde to se zadaným jménem a uloží
+    if (dev_list.Count > 0) {
+      foreach (ICaptureDevice dev in dev_list) {
+        if (String.Equals(dev.Name, name)) {
+          found = true;
+          Device = dev;
+        }
+      }
+    }
+
+    //Pokud nebylo nalezeno v aktivnich rozhranich to se zadanym jmenem, vypise chybovou zpravu a ukonci program
+    if (!found) {
+      Console.WriteLine("No interface for listening with given name (" + name + ").");
+      Environment.Exit(1);
+    }
+  }
+
+  private static void work_packet(object sender, CaptureEventArgs packet)
   {
     
   }
   
+  public void catch_packets(Argument arg)
+  {
+    //Otevře Device pro naslouchání s nastaveným timeoutem
+    int timeout = 2000;
+    int counter = 0;
+    Device.Open(DeviceMode.Promiscuous, timeout);
+    RawCapture packet = null;
+
+    //TODO delete
+    Console.WriteLine("[DEBUG] Listening started\n-----");
+    
+    while ((packet = Device.GetNextPacket()) != null) {
+      counter++;
+      Console.WriteLine("Got nice packet boi.");
+      if (counter == arg.Num) break;
+    }
+
+    Device.Close();
+    
+  }
+}
+
+
+class Program
+{ 
   /* Main
    * Volá zpracování argumentů a poté funkci na chytání paketů
    */
   static void Main(string[] args)
   {
     Argument arg = new Argument();
+    PacketCapture pc = new PacketCapture();
     arg.parse_arguments(args);
-    arg.parse_debug();
+    //arg.parse_debug();
+    pc.find_device(arg.Inter);
+    pc.catch_packets(arg);
   }
 }
