@@ -40,6 +40,10 @@ Např. pro výpis 5 TCP paketů na rozhraní *any* mířících na port 55 či o
 
 `./ipk-sniffer -i any -p 55 -t -n 5`
 
+### Poznámka k výstupu:
+
+Vypsaná data nejsou oddělena prádzným řádkem na dvě části, jak tomu je v zadání. V zadání není uvedeno, z jakého důvodu tam oddělení existuje. Inspirovala jsem se tedy výpisem velmi podobného druhu ve Wiresharku, a vypsala data paketu celá a bez rozdělení jako v tomto nástroji.
+
 ### Odevzdané soubory
 
 * Makefile
