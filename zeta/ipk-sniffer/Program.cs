@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
@@ -45,6 +46,28 @@ class Argument
   */
   public void parse_arguments(string[] args)
   {
+    //Ověření zda argumenty obsahují --help nebo -h, pokud ano, výpiše se help message a program skončí
+    foreach (string arg in args) {
+      if (String.Compare(arg, "--help") == 0 || String.Compare(arg, "-h") == 0) {
+        Console.WriteLine("Packet sniffer help\n-------------------\n" +
+                          "Program starts listening and catches any packet that come across the selected device.\n" +
+                          "If the received packet is from or to specified port in argument -p (if any)\n" +
+                          "and if it is of the desired type (UDP/TCP given by corresponding switches),\n" +
+                          "program extracts data from it and writes in on console screen (namely header with\n" +
+                          "source and destination info, raw data in hexadecimal and their ascii representation).\n\n" +
+                          "Possible arguments:\n" +
+                          "-h / --help\n  Writes this message.\n" +
+                          "-i name\n  Gives name of device to use for listening. If this switch is omitted, program will\n" +
+                          "  list all active devices and end instead.\n" +
+                          "-p number\n  Specifies port, only packets heading towards this port or originating from it\n" +
+                          "  will be captured. If not used, program will capture packets relating to all ports.\n" +
+                          "-n number\n  Number of packets to capture and write. If not specified, program will capture 1.\n" +
+                          "-t / --tcp\n  Switch to capture TCP packets.\n" +
+                          "-u / --udp\n  Switch to capture UDP packets.\n  If neither --tcp nor --udp is used, program " +
+                          "captures both TCP and UDP packets.");
+        Environment.Exit(0);
+      }
+    }
     // Parsování argumentů pomocí CommandLineParse
     Parser.Default.ParseArguments<Options>(args)
       .WithParsed<Options>(o =>
@@ -72,7 +95,7 @@ class Argument
         if (o.Port == null) {
           AllPorts = true;
         }
-        else if (o.Port < 0) {
+        else if (o.Port < 0 || o.Port > 65535) {
           Console.WriteLine("Invalid port number recieved (" + o.Port.ToString() + ").");
           Environment.Exit(1);
         }
@@ -87,19 +110,6 @@ class Argument
         if(!o.Tcp && o.Udp) Tcp = false;
         if(!o.Udp && o.Tcp) Udp = false;
       });
-  }
-
-  public void parse_debug()
-  {
-    Console.WriteLine("Interface: " + Inter);
-    Console.WriteLine("How many packet: " + Num.ToString());
-    if(AllPorts) Console.WriteLine("All ports");
-    else Console.WriteLine("Port: " + Port.ToString());
-    if(Tcp && Udp) Console.WriteLine("TCP & UDP");
-    else
-      if(Tcp) Console.WriteLine("TCP only");
-      else if(Udp) Console.WriteLine("UDP only");
-      else Console.WriteLine("Shouldn't happen, no tcp/udp");
   }
 }
 
@@ -132,6 +142,12 @@ class PacketCapture
     }
   }
 
+  /*
+   * Funkce s využitím knihovny SharpPCap zpracovává pakety.
+   * Podle argumentů programu, které jí byly předány, apikuje filtr a ukončí se s návratovou funkcí false,
+   * neodpovídal-li mu paket. Vytáhne si ze struktury IPPaket informace potřebné pro hlavičku, sestaví ji
+   * a vypíše. Pro zpracování těla paketu volá funkci work_packet_body
+   */
   private static bool work_packet(RawCapture raw, Argument arg)
   {
     //Extrahuje z rawCapture Packet (typ IPPacket, ze kterého lze lépe převzít informace)
