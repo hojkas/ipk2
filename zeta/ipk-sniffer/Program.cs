@@ -132,24 +132,23 @@ class PacketCapture
     }
   }
 
-  private static bool work_packet(RawCapture raw, bool capture_tcp, bool capture_udp)
+  private static bool work_packet(RawCapture raw, Argument arg)
   {
-    //TODO remove
-    Console.WriteLine("Packet recieved, workthrough:");
     //Extrahuje z rawCapture Packet (typ IPPacket, ze kterého lze lépe převzít informace)
     var packet = Packet.ParsePacket(raw.LinkLayerType, raw.Data);
     var ip = packet.Extract<IPPacket>();
     
     //Pokud je typ packetu TCP který podle parametrů nezachystáváme (nebo analogicky UDP který nezachystáváme)
     //nebo je-li jiného typu, funkce nic nevypíše a vrací false (tudíž counter se nezapočítá do celkového počtu)
-    if (!capture_tcp && ip.Protocol == ProtocolType.Tcp) return false;
-    if (!capture_udp && ip.Protocol == ProtocolType.Udp) return false;
+    if (!arg.Tcp && ip.Protocol == ProtocolType.Tcp) return false;
+    if (!arg.Udp && ip.Protocol == ProtocolType.Udp) return false;
     if (ip.Protocol != ProtocolType.Tcp && ip.Protocol != ProtocolType.Udp) return false;
     
     //Analyzuje o který packet jde a vytvoří verzi pro další zpracování
     bool isTcp = false; //false dále v programu == jde o udp
     TcpPacket PacTcp = null;
     UdpPacket PacUdp = null;
+    bool PortChecksOut = true;
     
     if (ip.Protocol == ProtocolType.Tcp) {
       //TCP
@@ -174,10 +173,18 @@ class PacketCapture
     catch (SocketException) {
       header += " " + ip.SourceAddress.ToString();
     }
+    
+    int PortNum;
+    //načte číslo portu z odpovídajícího paketu
+    if (isTcp) PortNum = PacTcp.SourcePort;
+    else PortNum =  PacUdp.SourcePort;
 
-    //TODO filter ports
-    if (isTcp) header += " : " + PacTcp.SourcePort.ToString();
-    else header += " : " + PacUdp.SourcePort.ToString();
+    //má-li se kontrolovat pouze jeden port, ověří zda je odesílatel ten port, pokud ne, uloží si informaci
+    //že se zatím port nenašel, a přidá do hlavičky k vypsání číslo portu
+    if(!arg.AllPorts)
+      if (PortNum != arg.Port)
+        PortChecksOut = false;
+    header += " : " + PortNum.ToString();
 
     //blok se pokusi prelozit destination adress, pokud nenajde, ulozi do hlavicky k vypsani IP adresu místo toho
     try {
@@ -188,13 +195,49 @@ class PacketCapture
       header += " > " + ip.DestinationAddress.ToString();
     }
     
-    if (isTcp) header += " : " + PacTcp.DestinationPort.ToString();
-    else header += " : " + PacUdp.DestinationPort.ToString();
-    
+    if (isTcp) PortNum = PacTcp.DestinationPort;
+    else PortNum = PacUdp.DestinationPort;
+    //Pokud první port byl vyhodnocen jako neodpovídající (aka hledalo se číslo portu, ne všechny, a nebyl to on),
+    //a zárveň ani zde číslo neodpovídá hledanému, funkce vrací false a vše do tohoto momentu zpracovávané se zahazuje
+    if (!PortChecksOut && PortNum != arg.Port) return false; 
+    header += " : " + PortNum.ToString() + "\n";
+
+    //Vypíše zpracovanou hlavičku, v tento moment už je jisté že zpracováváme paket který prošel filtry
     Console.WriteLine(header);
-
-
+    
+    parse_packet_body(raw);
     return true;
+  }
+
+  private static void parse_packet_body(RawCapture raw)
+  {
+    int counter = 0;
+    int worked = 0;
+    string line = "";
+    string end = " ";
+    //Cyklus prochází byte po bytu data rawCapture, vypisuje je a formátuje
+    foreach (byte b in raw.Data) {
+      //Začátek řádku
+      if (counter == 0) {
+        line = "0x" + worked.ToString("x4") + ":  ";
+        end = " ";
+      }
+      line += b.ToString("x2") + " ";
+      if (Char.IsControl(Convert.ToChar(b)) || Convert.ToInt32(b) > 127) end += ".";
+      else end += Convert.ToChar(b);
+      //V prostřed vypisování, po 8. bytu udělá o mezeru navíc kvůli formátu
+      if (counter == 7) {
+        line += " ";
+        end += " ";
+      }
+      counter++;
+      //Je-li načteno již 16 bytů, ukončí výpis řádku a přejde na další
+      if (counter == 16) {
+        Console.WriteLine(line + end);
+        counter = 0;
+      }
+      worked++;
+    }
   }
   
   public void catch_packets(Argument arg)
@@ -203,21 +246,20 @@ class PacketCapture
     int timeout = 2000;
     int counter = 0;
     Device.Open(DeviceMode.Promiscuous, timeout);
-    RawCapture packet = null;
+    RawCapture packet;
 
-    //TODO delete
-    Console.WriteLine("[DEBUG] Listening started\n-----");
-    
     // Cyklus načítá pakety
     while ((packet = Device.GetNextPacket()) != null) {
       //Volá funkci na zpracování paketu a pokud vrátí true (např. pokud jde o TCP protokol když
       //je zvolena funkce na naslouchání tcp, zvýší counter
-      if(work_packet(packet, arg.Tcp, arg.Udp)) counter++;
+      if (work_packet(packet, arg)) {
+        counter++;
+        if(counter != arg.Num) Console.WriteLine("");
+      }
       if (counter == arg.Num) break;
     }
 
     Device.Close();
-    
   }
 }
 
