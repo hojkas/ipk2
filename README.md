@@ -36,9 +36,9 @@ Pro důkladnější testování je vhodné spouštět program přímo z příkaz
 * `-t, --tcp` Povolí zachytávání TCP paketů. (Není-li použit žádný parametr specifikující tcp/udp filtr, program zachytává oboje implicitně)
 * `-u, --udp` Povolí zachytávání UDP paketů.
 
-Např. pro výpis 5 TCP paketů na rozhraní *enp0s3* mířících na port 55 či odcházejících z něj:
+Např. pro výpis 5 TCP paketů na rozhraní *any* mířících na port 55 či odcházejících z něj:
 
-`./ipk-sniffer -i enp0s3 -p 55 -t -n 5`
+`./ipk-sniffer -i any -p 55 -t -n 5`
 
 ### Odevzdané soubory
 
