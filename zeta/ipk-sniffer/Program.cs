@@ -225,6 +225,10 @@ class PacketCapture
     return true;
   }
 
+  /*
+   * Z raw dat paketu funkce procházením byte po bytu vytváří výsledný výpis dle zadání (hexadecimální hodnoty +
+   * ASCII zápis na konci řádku)
+   */
   private static void parse_packet_body(RawCapture raw)
   {
     int counter = 0;
@@ -239,6 +243,7 @@ class PacketCapture
         end = " ";
       }
       line += b.ToString("x2") + " ";
+      //Pokud jde o control znak či znak s hodnotou 128 a větší, vypíše tečku, jinak daný znak
       if (Char.IsControl(Convert.ToChar(b)) || Convert.ToInt32(b) > 127) end += ".";
       else end += Convert.ToChar(b);
       //V prostřed vypisování, po 8. bytu udělá o mezeru navíc kvůli formátu
@@ -254,8 +259,19 @@ class PacketCapture
       }
       worked++;
     }
+
+    if (counter != 0) {
+      for (int i = counter; i < 16; i++) line += "   ";
+      if (counter < 8) line += " ";
+      Console.WriteLine(line + end);
+    }
   }
   
+  /*
+   * FUnkce pro veškeré zachytávání paketů
+   * Otevře dané rozhraní pro naslouchání a poté načítá pakety a volá funkci na zpracování dokud
+   * nedosáhne daného čísla
+   */
   public void catch_packets(Argument arg)
   {
     //Otevře Device pro naslouchání s nastaveným timeoutem
