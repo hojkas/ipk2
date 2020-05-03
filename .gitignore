@@ -3,3 +3,6 @@ ipk-sniffer
 ipk-sniffer.pdb
 zeta/ipk-sniffer/obj/
 zeta/ipk-sniffer/bin/
+obj/
+bin/
+Rider_version/
