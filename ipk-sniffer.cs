@@ -77,7 +77,7 @@ class Argument
         if(String.IsNullOrEmpty(o.Interface)) {
           //Načte zařízení do seznamu pro pozdější zpracování
           CaptureDeviceList dev_list = CaptureDeviceList.Instance;
-          
+
           if (dev_list.Count < 1) {
             Console.WriteLine("No devices active on this machine.");
             Environment.Exit(0);
@@ -124,7 +124,7 @@ class PacketCapture
   {
     CaptureDeviceList dev_list = CaptureDeviceList.Instance;
     bool found = false;
-    
+
     //Cyklus projde available devices, a najde to se zadaným jménem a uloží
     if (dev_list.Count > 0) {
       foreach (ICaptureDevice dev in dev_list) {
@@ -153,19 +153,19 @@ class PacketCapture
     //Extrahuje z rawCapture Packet (typ IPPacket, ze kterého lze lépe převzít informace)
     var packet = Packet.ParsePacket(raw.LinkLayerType, raw.Data);
     var ip = packet.Extract<IPPacket>();
-    
+
     //Pokud je typ packetu TCP který podle parametrů nezachystáváme (nebo analogicky UDP který nezachystáváme)
     //nebo je-li jiného typu, funkce nic nevypíše a vrací false (tudíž counter se nezapočítá do celkového počtu)
     if (!arg.Tcp && ip.Protocol == ProtocolType.Tcp) return false;
     if (!arg.Udp && ip.Protocol == ProtocolType.Udp) return false;
     if (ip.Protocol != ProtocolType.Tcp && ip.Protocol != ProtocolType.Udp) return false;
-    
+
     //Analyzuje o který packet jde a vytvoří verzi pro další zpracování
     bool isTcp = false; //false dále v programu == jde o udp
     TcpPacket PacTcp = null;
     UdpPacket PacUdp = null;
     bool PortChecksOut = true;
-    
+
     if (ip.Protocol == ProtocolType.Tcp) {
       //TCP
       PacTcp = (TcpPacket) ip.PayloadPacket;
@@ -179,8 +179,8 @@ class PacketCapture
     //Vytvoří se string header a uloží se do něj v žádaném formátu čas přijetí paketu
     var date = raw.Timeval.Date;
     string header = date.Hour.ToString() + ":" + date.Minute.ToString() + ":" + date.Second.ToString() + "." +
-                    date.Millisecond.ToString(); 
-    
+                    date.Millisecond.ToString();
+
     //blok se pokusí přeložit ip adresu odesílatele, nenajde-li ji, uloží do stringu header pouze IP adresu
     try {
       IPHostEntry entry = Dns.GetHostEntry(ip.SourceAddress);
@@ -189,7 +189,7 @@ class PacketCapture
     catch (SocketException) {
       header += " " + ip.SourceAddress.ToString();
     }
-    
+
     int PortNum;
     //načte číslo portu z odpovídajícího paketu
     if (isTcp) PortNum = PacTcp.SourcePort;
@@ -210,17 +210,17 @@ class PacketCapture
     catch (SocketException) {
       header += " > " + ip.DestinationAddress.ToString();
     }
-    
+
     if (isTcp) PortNum = PacTcp.DestinationPort;
     else PortNum = PacUdp.DestinationPort;
     //Pokud první port byl vyhodnocen jako neodpovídající (aka hledalo se číslo portu, ne všechny, a nebyl to on),
     //a zárveň ani zde číslo neodpovídá hledanému, funkce vrací false a vše do tohoto momentu zpracovávané se zahazuje
-    if (!PortChecksOut && PortNum != arg.Port) return false; 
+    if (!PortChecksOut && PortNum != arg.Port) return false;
     header += " : " + PortNum.ToString() + "\n";
 
     //Vypíše zpracovanou hlavičku, v tento moment už je jisté že zpracováváme paket který prošel filtry
     Console.WriteLine(header);
-    
+
     parse_packet_body(raw);
     return true;
   }
@@ -266,7 +266,7 @@ class PacketCapture
       Console.WriteLine(line + end);
     }
   }
-  
+
   /*
    * FUnkce pro veškeré zachytávání paketů
    * Otevře dané rozhraní pro naslouchání a poté načítá pakety a volá funkci na zpracování dokud
@@ -275,7 +275,7 @@ class PacketCapture
   public void catch_packets(Argument arg)
   {
     //Otevře Device pro naslouchání s nastaveným timeoutem
-    int timeout = 2000;
+    int timeout = 10000;
     int counter = 0;
     Device.Open(DeviceMode.Promiscuous, timeout);
     RawCapture packet;
@@ -297,7 +297,7 @@ class PacketCapture
 
 
 class Program
-{ 
+{
   /* Main
    * Volá zpracování argumentů a poté funkci na chytání paketů
    */
@@ -306,7 +306,6 @@ class Program
     Argument arg = new Argument();
     PacketCapture pc = new PacketCapture();
     arg.parse_arguments(args);
-    //arg.parse_debug();
     pc.find_device(arg.Inter);
     pc.catch_packets(arg);
   }
