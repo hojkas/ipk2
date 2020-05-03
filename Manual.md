@@ -56,6 +56,8 @@ Třída *Argument*  byla navrhnuta pro zpracování argumentů programu a uchov�
 
 Třída *CapturePacket* byla modelována jako jádro programu. Pomocí knihovny *SharpPCap* by se starala o otevření zařízení pro naslouchání i samotné filtrování a zpracování paketů. K filtrování by používala prostředky instance třídy *Argument*.
 
+<div style="page-break-after: always; break-after: page;"></div>
+
 # 2. Implementace
 
 ## Makefile
@@ -96,26 +98,23 @@ Slouží k nalezení zařízení na naslouchání. Pomocí *CaptureDeviceList* n
 
 Funkce použije dříve nalezené zařízení *Device* - otevře ho v módu *Promiscuous* pro zachytávání všech paketů, nejen těch co jsou pro program. Dále nastavuje *counter* jako počítadlo sloužící k zpracování žádaného počtu paketů.
 
-Obsahuje cyklus, který v každé[^1] své iteraci zachytí paket a pošle na zpracování funkci *work_packet*. Pokud ta vrátí hodnotu *true*, znamená to, že paket prošel filtry programu a byl tudíž zpracován. V takovém případě se přičte 1 k *counter* a porovná se s žádanou hodnotou zpracovaných paketů, pokud je stejná, cyklus se ukončí a zařízení *Device* se uzavře.
+Obsahuje cyklus, který v každé své iteraci zachytí paket a pošle na zpracování funkci *work_packet*. (Kdyby byl právě zachycený paket hodnoty *null*, cyklus by se ukončil předčasně. Tato situace by mohla nastat, kdyby došlo k timeout nastaveném na 10s. Jedná se o ochranu před potenciálně nekonečně běžícím programem.)
 
-[^1]:Pokud není právě zachycený paket *null*, v tom případě by se cyklus ukončil předčasně i před nasbíráním správného počtu paketů. Tato situace by mohla nastat, kdyby došlo k timeout nastaveném na 10s. Jedná se o ochranu před potenciálně nekonečně běžícím programem.
+Pokud funkce *work_packet* vrátí hodnotu *true*, znamená to, že paket prošel filtry programu a byl tudíž zpracován. V takovém případě se přičte 1 k *counter* a porovná se s žádanou hodnotou zpracovaných paketů, pokud je stejná, cyklus se ukončí a zařízení *Device* se uzavře.
 
 #### *work_packet*
 
 Z *RawCapture* dat paketu, které jsou funkci předány, je vytvořen *IPPacket* a z něj podle typu *UdpPacket* či *TcpPacket*. Pokud je objeveno, že nejde o ani jeden z protokolů UDP/TCP či jde o takový, který není žádáno zachytávat, funkce končí s návratovou hodnotou *false*.
 
-Funkce dále zpracovává data s cílem vytvořit a vypsat hlavičku[^2].
+Funkce dále zpracovává data s cílem vytvořit a vypsat hlavičku tvaru `hh:mm:ss.fff source_IP|FQDN : source_port > destination_IP|FQDN : destination_port `.
 
-Čas je získán z *RawCapture* a jsou z něj převzaty hodiny, minuty, sekundy a milisekundy v UTC[^3].
+Čas je získán z *RawCapture* a jsou z něj převzaty hodiny, minuty, sekundy a milisekundy v UTC. Čas je ponechán v původním čase extrahovaném z paketu, není převáděn do lokálního.
 
 IP adresy source a destination paketu jsou získány z *Tcp/UdpPacket* a program se je pokusí přeložit na doménové jméno. Pokud se překlad podařil, do hlavičky se uvede jméno, pokud skončil s exception, ponechá se IP adresa.
 
 Čísla portů jsou extrahovány z *Tcp/UdpPacket*. Pokud bylo v argumentech omezení na číslo portu, ověří se source i destination hodnota a v případě, že ani jedna neodpovídá, funkce vrací hodnotu *false*.
 
 Do této části se již funkce dostane pouze v případě, že paket prošel všemi filtry. Vypíše se tedy poskládaná hlavička, volá se funkce *parse_packet_body* a poté funkce končí s návratovou hodnotou *true*.
-
-[^2]: Tvaru `hh:mm:ss.fff source_IP|FQDN : source_port > destination_IP|FQDN : destination_port `.
-[^3]:Čas je ponechán v původním čase extrahovaném z paketu, tj. UTC, není převáděn do lokálního.
 
 #### *parse_packet_body*
 
@@ -131,7 +130,9 @@ Proměnná *counter* s hodnotou 7 značí, že se výpis nachází v polovině �
 
 Po skončení cyklu se musí ověřit hodnota proměnné *counter*. Když není 0, zůstaly v řetězcích *line* a *end* zpracované nevytisknuté byty, o které funkce nyní po přidání mezer kvůli konzistenci formátování přidá na výstup.
 
-[^4]: Pracuji s *RawCapture* daty paketu. Nebyla jsem si jistá, zda odřádkování v zadání mělo význam oddělení určitých částí dat paketu, a proto jsem po analýze výpisu dat paketu ve Wiresharku zvolila stejný způsob: veškerá data paketu v jedné neoddělené části.
+V celé této části pracuji s *RawCapture* daty paketu. Ze zadání nevyplývá, zda odřádkování v příkladu mělo význam pro oddělení určitých částí dat paketu ani jakých, a proto jsem po analýze výpisu dat paketu ve Wiresharku zvolila stejný způsob: veškerá data paketu zpracovaná v jedné neoddělené části.
+
+<div style="page-break-after: always; break-after: page;"></div>
 
 # 3. Testování
 
@@ -147,5 +148,32 @@ Tento nástroj byl nápomocný ve více částech tvorby projektu.
 
 Nejprve jsem testovala jeho chování bez ohledu na projekt. Osvěžení znalostí jak vypadá struktura libovolného paketu, jeho zobrazení po bytech ve vztahu k informaci kterou skutečně nese, co se stane na síti po zavolání *ping* na doménu či po použití *curl* z terminálu mi pomohlo ujasnit si co je v projektu zapotřebí.
 
-V největší míře přišel WireShark ke slovu při testování téměř hotového projektu. Pro vyladění chyb stačilo zapnout zachytávání, 
+V největší míře přišel WireShark ke slovu při testování téměř hotového projektu. Pro vyladění chyb stačilo zapnout zachytávání, spustit *ipk-sniffer* a porovnat vypsaný paket s zachyceným.
 
+Příklad porovnání:
+
+Výstup z *ipk-sniffer*:
+
+![test_prog_out](C:\Users\ivkas\FIT\4SEM\IPK\proj2\ipk2\test_prog_out.png)
+
+Stejný paket vypsaný pomocí *WireShark*:
+
+![test_wireshark_out](C:\Users\ivkas\FIT\4SEM\IPK\proj2\ipk2\test_wireshark_out.png)
+
+
+
+<div style="page-break-after: always; break-after: page;"></div>
+
+# 4. Zdroje
+
+* **Packet Analyser, Wikipedia**
+
+  Wikipedia contributors. Packet analyzer. Wikipedia, The Free Encyclopedia. November 11, 2019, 15:11 UTC. Available at: https://en.wikipedia.org/w/index.php?title=Packet_analyzer&oldid=925665876. Accessed May 3, 2020
+
+* **SharpPCap**
+
+  SharpPCap: A Packet Capture Framework for NET. In: *CodeProject* [online]. 2014 [cit. 2020-05-03]. Dostupné z: https://www.codeproject.com/Articles/12458/SharpPcap-A-Packet-Capture-Framework-for-NET
+
+* **WireShark**
+
+  *WireShark* [online]. [cit. 2020-05-03]. Dostupné z: https://www.wireshark.org/docs/wsug_html_chunked/
