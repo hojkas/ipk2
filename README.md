@@ -1,6 +1,8 @@
 # ipk-sniffer
 
-Iveta Strnadová, xstrna14
+Letní 2019/2020
+
+Body: 7/20
 
 Implementace 2. projektu (verze ZETA) do předmětu IPK.
 
